@@ -3,6 +3,8 @@ use chrono::offset::Utc;
 use chrono::{Date, Datelike, Duration, NaiveDate};
 use std::fmt;
 
+mod monthly;
+
 #[derive(Debug)]
 pub struct Ticker {
     pub symbol: Symbol,
@@ -15,6 +17,59 @@ impl Ticker {
             symbol: symbol,
             ticks: ticks,
         }
+    }
+
+    pub fn ticks_from_year(&self, year: i32) -> Self {
+        Self {
+            symbol: self.symbol.clone(),
+            ticks: self
+                .ticks
+                .iter()
+                .filter(|tick| tick.date().year() >= year)
+                .map(|tick| tick.clone())
+                .collect(),
+        }
+    }
+
+    pub fn ticks_first_of_month(&self) -> Self {
+        Self {
+            symbol: self.symbol.clone(),
+            ticks: monthly::MonthlyTicker::new(&self.ticks).first_day_of_month(),
+        }
+    }
+
+    pub fn ticks_middle_of_month(&self) -> Self {
+        Self {
+            symbol: self.symbol.clone(),
+            ticks: monthly::MonthlyTicker::new(&self.ticks).middle_of_month(),
+        }
+    }
+
+    pub fn ticks_last_of_month(&self) -> Self {
+        Self {
+            symbol: self.symbol.clone(),
+            ticks: monthly::MonthlyTicker::new(&self.ticks).last_day_of_month(),
+        }
+    }
+
+    pub fn price_from(&self) -> f32 {
+        self.ticks[0].price()
+    }
+
+    pub fn price_to(&self) -> f32 {
+        if self.ticks.is_empty() {
+            0f32
+        } else {
+            self.ticks[self.ticks.len() - 1].price()
+        }
+    }
+
+    pub fn date_from(&self) -> Date<Utc> {
+        self.ticks[0].date()
+    }
+
+    pub fn date_to(&self) -> Date<Utc> {
+        self.ticks[self.ticks.len() - 1].date()
     }
 }
 
@@ -33,12 +88,16 @@ impl fmt::Display for Symbol {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Tick((Date<Utc>, f32));
 
 impl Tick {
     pub fn new_from_naive_date(date: NaiveDate, price: f32) -> Self {
         Self((Utc.ymd(date.year(), date.month(), date.day()), price))
+    }
+
+    pub fn new(date: Date<Utc>, price: f32) -> Self {
+        Self((date, price))
     }
 
     pub fn tuple(&self) -> &(Date<Utc>, f32) {
