@@ -2,11 +2,13 @@ use crate::ticker::{Symbol, Ticker};
 use plotters::coord::IntoMonthly;
 use plotters::prelude::*;
 
-pub fn draw(symbol: Symbol, tickers: Vec<Ticker>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn draw(symbol: Symbol, ticker: Ticker) -> Result<(), Box<dyn std::error::Error>> {
     let root = SVGBackend::new("stock.svg", (1024 * 5, 768 * 2)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    let (from, to) = (&tickers[0], &tickers[tickers.len() - 1]);
+    let ticks = &ticker.ticks;
+
+    let (from, to) = (&ticks[0], &ticks[ticks.len() - 1]);
 
     let mut chart = ChartBuilder::on(&root)
         .x_label_area_size(40)
@@ -16,21 +18,17 @@ pub fn draw(symbol: Symbol, tickers: Vec<Ticker>) -> Result<(), Box<dyn std::err
             ("Arial", 30.0).into_font(),
         )
         .build_ranged(
-            (from.day_utc()..to.day_utc_plus_days(1)).monthly(),
-            from.price..(to.price + (to.price * 0.1)),
+            (from.date()..to.date_plus_days(1)).monthly(),
+            from.price()..(to.price() + (to.price() * 0.1)),
         )?;
 
     chart.draw_series(LineSeries::new(
-        //
-        tickers
-            .iter()
-            .map(|ticker| (ticker.day_utc(), ticker.price)),
+        ticks.iter().map(|ticker| *ticker.tuple()),
         &GREEN,
     ))?;
 
     chart.draw_series(LineSeries::new(
-        //
-        tickers.iter().map(|ticker| (ticker.day_utc(), 100f32)),
+        ticks.iter().map(|ticker| (ticker.date(), 100f32)),
         &BLUE,
     ))?;
 

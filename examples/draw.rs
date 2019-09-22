@@ -1,7 +1,6 @@
 extern crate chrono;
 extern crate investmodel;
 
-use std::collections::BTreeMap;
 use std::env;
 use std::path::Path;
 
@@ -29,5 +28,5 @@ fn main() {
 
     let data = yahoo::deserialize_from_csv(symbol.clone());
 
-    investmodel::plot::draw(symbol, data);
+    let _ = investmodel::plot::draw(symbol, data);
 }

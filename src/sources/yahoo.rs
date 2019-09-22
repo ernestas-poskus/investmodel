@@ -1,7 +1,6 @@
-use crate::ticker::{Symbol, Ticker};
+use crate::ticker::{Symbol, Tick, Ticker};
 use chrono::NaiveDate;
 use csv::{Error as CsvError, Reader};
-use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct YahooHistoricalData {
@@ -21,15 +20,13 @@ struct YahooHistoricalData {
     volume: f32,
 }
 
-pub fn deserialize_from_csv(symbol: Symbol) -> Vec<Ticker> {
+pub fn deserialize_from_csv(symbol: Symbol) -> Ticker {
     let mut rdr = Reader::from_path(format!("{}.csv", symbol))
         .expect(&format!("File not found: {}.csv", symbol));
 
-    let arc_symbol = Arc::new(symbol);
-
     let iter = rdr.deserialize();
 
-    let mut tickers: Vec<Ticker> = if let Some(size) = iter.size_hint().1 {
+    let mut ticks: Vec<Tick> = if let Some(size) = iter.size_hint().1 {
         Vec::with_capacity(size)
     } else {
         Vec::new()
@@ -39,16 +36,15 @@ pub fn deserialize_from_csv(symbol: Symbol) -> Vec<Ticker> {
         let data: Result<YahooHistoricalData, CsvError> = result;
 
         match data {
-            Ok(historical_data) => tickers.push(Ticker {
-                symbol: arc_symbol.clone(),
-                date: historical_data.date,
-                price: historical_data.adjclose,
-            }),
+            Ok(historical_data) => ticks.push(Tick::new_from_naive_date(
+                historical_data.date,
+                historical_data.adjclose,
+            )),
             Err(e) => {
                 println!("Error deserialize: {}", e);
             }
         }
     }
 
-    tickers
+    Ticker::new(symbol, ticks)
 }

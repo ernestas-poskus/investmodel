@@ -2,9 +2,23 @@ use chrono::offset::TimeZone;
 use chrono::offset::Utc;
 use chrono::{Date, Datelike, Duration, NaiveDate};
 use std::fmt;
-use std::sync::Arc;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug)]
+pub struct Ticker {
+    pub symbol: Symbol,
+    pub ticks: Vec<Tick>,
+}
+
+impl Ticker {
+    pub fn new(symbol: Symbol, ticks: Vec<Tick>) -> Self {
+        Self {
+            symbol: symbol,
+            ticks: ticks,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Symbol(String);
 
 impl Symbol {
@@ -20,25 +34,31 @@ impl fmt::Display for Symbol {
 }
 
 #[derive(Debug)]
-pub struct Ticker {
-    pub symbol: Arc<Symbol>,
-    pub date: NaiveDate,
+pub struct Tick((Date<Utc>, f32));
 
-    pub price: f32,
-}
+impl Tick {
+    pub fn new_from_naive_date(date: NaiveDate, price: f32) -> Self {
+        Self((Utc.ymd(date.year(), date.month(), date.day()), price))
+    }
 
-impl Ticker {
+    pub fn tuple(&self) -> &(Date<Utc>, f32) {
+        &self.0
+    }
+
+    pub fn date(&self) -> Date<Utc> {
+        self.tuple().0
+    }
+
+    pub fn price(&self) -> f32 {
+        self.tuple().1
+    }
+
     /// ```
-    /// use investmodel::ticker::Ticker;
-    /// use investmodel::ticker::Symbol;
+    /// use investmodel::Tick::Tick;
+    /// use investmodel::Tick::Symbol;
     /// use investmodel::chrono::NaiveDate;
-    /// use std::sync::Arc;
     ///
-    /// let tick = Ticker {
-    ///     symbol: Arc::new(Symbol::new("s".to_string())),
-    ///     date: NaiveDate::from_ymd(2019, 6, 20),
-    ///     price: 120.0
-    /// };
+    /// let tick = Tick(NaiveDate::from_ymd(2019, 6, 20), 120);
     ///
     /// assert_eq!(tick.percent_diff(141.0), 17.5);
     /// assert_eq!(tick.percent_diff(204.0), 70.0);
@@ -51,20 +71,17 @@ impl Ticker {
     ///
     /// ```
     pub fn percent_diff(&self, price: f32) -> f32 {
-        let diff = ((self.price - price) / self.price) * 100.0;
-        if self.price > price {
+        let diff = ((self.price() - price) / self.price()) * 100.0;
+        if self.price() > price {
             -diff
         } else {
             diff.abs()
         }
     }
 
-    pub fn day_utc(&self) -> Date<Utc> {
-        Utc.ymd(self.date.year(), self.date.month(), self.date.day())
-    }
-
-    pub fn day_utc_plus_days(&self, days: i64) -> Date<Utc> {
-        Utc.ymd(self.date.year(), self.date.month(), self.date.day()) + Duration::days(days)
+    pub fn date_plus_days(&self, days: i64) -> Date<Utc> {
+        let date = self.date();
+        Utc.ymd(date.year(), date.month(), date.day()) + Duration::days(days)
     }
 
     pub fn percent_diff_less_than(&self, price: f32, less_than: f32) -> bool {
@@ -76,8 +93,8 @@ impl Ticker {
     }
 }
 
-impl fmt::Display for Ticker {
+impl fmt::Display for Tick {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} - {}: {:.2}", self.symbol, self.date, self.price)
+        write!(f, "{}: {:.2}", self.date(), self.price())
     }
 }
